@@ -61,8 +61,21 @@ init([]) ->
 %% Description: Handling call messages
 %%--------------------------------------------------------------------
 handle_call({send, To, Subject, Body}, _From, State) ->
-    Reply = send_email(To, Subject, Body),
-    {reply, Reply, State};
+    process_flag(trap_exit, true),
+    Pid = spawn_link(fun() ->
+                             Result = send_one(To, Subject, Body),
+                             case Result of
+                                 [] -> exit(normal);
+                                 _Any -> erlang:error(error)
+                             end
+                     end),
+    receive
+        {'EXIT', Pid, Reason} ->
+            case Reason of
+                normal -> {reply, ok, State};
+                _Error -> {reply, error, State}
+            end
+    end;
 handle_call(_Request, _From, State) ->
     Reply = ok,
     {reply, Reply, State}.
@@ -105,13 +118,6 @@ code_change(_OldVsn, State, _Extra) ->
 %%--------------------------------------------------------------------
 %%% Internal functions
 %%--------------------------------------------------------------------
-
-send_email(To, Subject, Body) ->
-    Result = send_one(To, Subject, Body),
-    case Result of
-        [] -> ok;
-        _Any -> error
-    end.
 
 send_one(To, Subject, Body) ->
     os:cmd("echo \"" ++ Body ++ "\" | mail -s \"" ++ Subject ++ "\" " ++ To).
