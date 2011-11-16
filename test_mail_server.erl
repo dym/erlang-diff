@@ -10,7 +10,7 @@
 -behaviour(gen_server).
 
 %% API
--export([start_link/0, send_email/4]).
+-export([start_link/0, send/4]).
 
 %% gen_server callbacks
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2,
@@ -34,7 +34,7 @@ start_link() ->
 %% Function: send_email() -> ok | error
 %% Description: Sends email
 %%--------------------------------------------------------------------
-send_email(From, To, Subject, Body) ->
+send(From, To, Subject, Body) ->
     gen_server:call(?SERVER, {send, From, To, Subject, Body}).
 
 %%====================================================================
@@ -61,7 +61,7 @@ init([]) ->
 %% Description: Handling call messages
 %%--------------------------------------------------------------------
 handle_call({send, From, To, Subject, Body}, _From, State) ->
-    Reply = "Call handled",
+    Reply = send_email(From, To, Subject, Body),
     {reply, Reply, State};
 handle_call(_Request, _From, State) ->
     Reply = ok,
@@ -106,3 +106,5 @@ code_change(_OldVsn, State, _Extra) ->
 %%% Internal functions
 %%--------------------------------------------------------------------
 
+send_email(From, To, Subject, Body) ->
+    {"sent", From, To, Subject, Body}.
