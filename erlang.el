@@ -82,6 +82,10 @@ The name should not contain the trailing slash.
 Should this variable be nil, no manual pages will show up in the
 Erlang mode menu.")
 
+
+(defvar erlang-system-init-file ".erl_system_init"
+  "Init file with options to run erl.")
+
 (eval-and-compile
   (defconst erlang-emacs-major-version
     (if (boundp 'emacs-major-version)
@@ -4983,8 +4987,14 @@ a prompt.  When nil, we will wait forever, or until \\[keyboard-quit].")
 (eval-after-load "uniquify"
   '(add-to-list 'uniquify-list-buffers-directory-modes 'erlang-shell-mode))
 
+(defun get-string-from-file (file-path)
+  "Return FILEPATH's file content."
+  (with-temp-buffer
+    (insert-file-contents file-path)
+    (buffer-string)))
+
 ;;;###autoload
-(defun inferior-erlang (&optional command)
+(defun inferior-erlang (&optional options)
   "Run an inferior Erlang.
 With prefix command, prompt for command to start Erlang with.
 
@@ -5007,16 +5017,21 @@ editing control characters:
 	       (read-shell-command "Erlang command: ")
 	     (read-string "Erlang command: ")))))
   (require 'comint)
-  (let (cmd opts)
-    (if command
-        (setq cmd "sh"
-              opts (list "-c" command))
-      (setq cmd inferior-erlang-machine
-            opts inferior-erlang-machine-options)
-      (cond ((eq inferior-erlang-shell-type 'oldshell)
-             (setq opts (cons "-oldshell" opts)))
-            ((eq inferior-erlang-shell-type 'newshell)
-             (setq opts (append '("-newshell" "-env" "TERM" "vt100") opts)))))
+  (let (cmd opts options)
+    (setq cmd inferior-erlang-machine
+          opts inferior-erlang-machine-options)
+    (let ((erl-init-filename
+           (mapconcat 'identity
+                      (list (second (split-string (pwd)))
+                            erlang-system-init-file) "")))
+      (if (file-exists-p erl-init-filename)
+          (setq options (split-string (get-string-from-file erl-init-filename)))))
+    (if options
+        (setq opts (append options opts)))
+    (cond ((eq inferior-erlang-shell-type 'oldshell)
+           (setq opts (cons "-oldshell" opts)))
+          ((eq inferior-erlang-shell-type 'newshell)
+           (setq opts (append '("-newshell" "-env" "TERM" "vt100") opts))))
 
     ;; Using create-file-buffer and list-buffers-directory in this way
     ;; makes uniquify give each buffer a unique name based on the
